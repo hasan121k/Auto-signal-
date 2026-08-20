@@ -56,7 +56,8 @@ async def play_in_live(raw_audio_file):
     try:
         await call_py.play(CHAT_ID, MediaStream(raw_audio_file))
     except Exception as e:
-        print(f"Play Stream Info: {e}")
+        # repr(e) ব্যবহারে করে আসল এররটি সুনির্দিষ্টভাবে লগে প্রিন্ট হবে
+        print(f"Play Stream Info: {repr(e)}")
 
 
 # ১ মিনিটের সিগন্যাল প্রেডিকশন
