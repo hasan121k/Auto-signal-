@@ -3,7 +3,7 @@ import os
 from aiohttp import web
 import edge_tts
 from pytgcalls import PyTgCalls
-from pytgcalls.types.input_stream import AudioPiped
+from pytgcalls.types import MediaStream
 import requests
 from telethon import TelegramClient, events
 import yt_dlp
@@ -45,14 +45,9 @@ async def generate_sweet_girl_voice(text):
 # লাইভে কথা বা গান প্লে করা
 async def play_in_live(raw_audio_file):
     try:
-        await call_py.join_group_call(
-            CHAT_ID, AudioPiped(raw_audio_file), stream_type=1
-        )
-    except Exception:
-        try:
-            await call_py.change_stream(CHAT_ID, AudioPiped(raw_audio_file))
-        except Exception as e:
-            print(f"Play Stream Info: {e}")
+        await call_py.play(CHAT_ID, MediaStream(raw_audio_file))
+    except Exception as e:
+        print(f"Play Stream Info: {e}")
 
 
 # ১ মিনিটের সিগন্যাল প্রেডিকশন
@@ -217,7 +212,7 @@ async def stop_handler(event):
     global is_running
     is_running = False
     try:
-        await call_py.leave_group_call(CHAT_ID)
+        await call_py.leave_call(CHAT_ID)
         await event.respond("🛑 বট লাইভ ত্যাগ করেছে।")
     except Exception as e:
         print(f"Stop Error: {e}")
