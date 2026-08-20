@@ -2,35 +2,25 @@ import asyncio
 import os
 from aiohttp import web
 import edge_tts
-from pyrogram import Client, filters
+from pytgcalls import PyTgCalls
+from pytgcalls.types.input_stream import AudioPiped
 import requests
-
-# নতুন ও পুরনো উভয় ভার্সনের জন্য অটোমেটিক ইমপোর্ট হ্যান্ডলার
-try:
-    from pytgcalls import PyTgCalls
-except ImportError:
-    from pytgcalls import Client as PyTgCalls
-
-try:
-    from pytgcalls.types import MediaStream
-except ImportError:
-    try:
-        from pytgcalls.types import AudioPiped as MediaStream
-    except ImportError:
-        pass
+from telethon import TelegramClient, events
+import yt_dlp
 
 # ================= আপনার কনফিগারেশন =================
 API_ID = 33978180
 API_HASH = "b3cb0b0378d532f1a8e7ef1c1fd2e841"
 BOT_TOKEN = "8386397372:AAG43W1Eom0ug_kqGBBjypdn2ZwtUUwynNA"
-CHAT_ID = -1004378457331
+CHAT_ID = -1004378457331  # চ্যানেলের লাইভ আইডি
 
-# ১ মিনিটের অফিসিয়াল WinGo API
 API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 # ==================================================
 
-app = Client("signal_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-call_py = PyTgCalls(app)
+bot = TelegramClient("signal_bot_session", API_ID, API_HASH).start(
+    bot_token=BOT_TOKEN
+)
+call_py = PyTgCalls(bot)
 
 is_running = False
 last_period = None
@@ -38,42 +28,54 @@ current_pred = None
 pending_check = False
 
 
-# মিষ্টি বাংলাদেশি মেয়েদের কণ্ঠ
-async def generate_girl_voice(text):
-    audio_file = "voice_output.mp3"
-    communicate = edge_tts.Communicate(
-        text, voice="bn-BD-NabanitaNeural", rate="+5%", pitch="+2Hz"
+# মিষ্টি মেয়েদের ভয়েস তৈরি
+async def generate_sweet_girl_voice(text):
+    audio_file = "voice_output.raw"
+    mp3_file = "temp.mp3"
+    comm = edge_tts.Communicate(
+        text, voice="bn-BD-NabanitaNeural", rate="+3%", pitch="+3Hz"
     )
-    await communicate.save(audio_file)
+    await comm.save(mp3_file)
+    os.system(
+        f"ffmpeg -y -i {mp3_file} -f s16le -ac 1 -ar 48000 {audio_file} >/dev/null 2>&1"
+    )
     return audio_file
 
 
-# লাইভে ভয়েস প্লে
-async def play_in_live(audio_file):
+# লাইভে কথা বা গান প্লে করা
+async def play_in_live(raw_audio_file):
     try:
-        await call_py.play(CHAT_ID, MediaStream(audio_file))
-    except Exception as e:
-        print(f"ভয়েস প্লে এরর: {e}")
+        await call_py.join_group_call(
+            CHAT_ID, AudioPiped(raw_audio_file), stream_type=1
+        )
+    except Exception:
+        try:
+            await call_py.change_stream(CHAT_ID, AudioPiped(raw_audio_file))
+        except Exception as e:
+            print(f"Play Stream Info: {e}")
 
 
 # ১ মিনিটের সিগন্যাল প্রেডিকশন
 def calculate_prediction(history_list):
-    last5_sizes = [
+    last5 = [
         "BIG" if int(x["number"]) >= 5 else "SMALL" for x in history_list[:5]
     ]
-    if last5_sizes[0] == last5_sizes[1] == last5_sizes[2]:
-        return last5_sizes[0]
-    return "SMALL" if last5_sizes[0] == "BIG" else "BIG"
+    if last5[0] == last5[1] == last5[2]:
+        return last5[0]
+    return "SMALL" if last5[0] == "BIG" else "BIG"
 
 
-# ১ মিনিটের অটোমেটিক সিগন্যাল ইঞ্জিন
-async def wingo_1min_engine():
+# ১ মিনিটের লাইভ সিগন্যাল লুপ
+async def wingo_1min_live_engine():
     global last_period, current_pred, pending_check, is_running
-    print(">> ১ মিনিটের WinGo AI লাইভ সিগন্যাল চালু হয়েছে...")
+    print(">> ১ মিনিটের WinGo AI লাইভ সিগন্যাল ইঞ্জিন চালু রয়েছে...")
 
     while is_running:
         try:
-            res = requests.get(f"{API_URL}?t={int(asyncio.get_event_loop().time() * 1000)}", timeout=5)
+            res = requests.get(
+                f"{API_URL}?t={int(asyncio.get_event_loop().time() * 1000)}",
+                timeout=5,
+            )
             data = res.json()
             history = data.get("data", {}).get("list", [])
 
@@ -83,51 +85,57 @@ async def wingo_1min_engine():
                 actual_num = int(latest["number"])
                 actual_size = "BIG" if actual_num >= 5 else "SMALL"
 
-                # উইন / লস চেক
-                if pending_check and last_period and last_period != actual_period:
+                # উইন / লস লাইভে বলা
+                if (
+                    pending_check
+                    and last_period
+                    and last_period != actual_period
+                ):
                     if current_pred:
                         if current_pred == actual_size:
-                            win_msg = "বুম বুম! কোপ! আমাদের সিগন্যাল ডিরেক্ট উইন হয়েছে! সবাইকে অনেক অভিনন্দন!"
-                            print(f"[RESULT] WIN: {actual_size}")
-                            v_file = await generate_girl_voice(win_msg)
+                            win_speech = "বুম বুম! কোপ! আমাদের সিগন্যাল ডিরেক্ট উইন হয়েছে! সবাইকে অনেক অনেক অভিনন্দন!"
+                            print(f"[WIN] {actual_size}")
+                            v_file = await generate_sweet_girl_voice(win_speech)
                             await play_in_live(v_file)
                             await asyncio.sleep(6)
                         else:
-                            loss_msg = "কোনো সমস্যা নাই, সবাই মার্টিঙ্গেল লেভেল অনুযায়ী পরের ট্রেডের জন্য রেডি হন।"
-                            print(f"[RESULT] LOSS: {actual_size}")
-                            v_file = await generate_girl_voice(loss_msg)
+                            loss_speech = "কোনো সমস্যা নাই, সবাই মার্টিঙ্গেল লেভেল অনুযায়ী পরের ট্রেডের জন্য প্রস্তুত হন।"
+                            print(f"[LOSS] {actual_size}")
+                            v_file = await generate_sweet_girl_voice(
+                                loss_speech
+                            )
                             await play_in_live(v_file)
                             await asyncio.sleep(6)
                     pending_check = False
 
-                # নতুন সিগন্যাল তৈরি
+                # নতুন সিগন্যাল লাইভে ঘোষণা
                 if last_period != actual_period:
                     last_period = actual_period
                     current_pred = calculate_prediction(history)
                     pending_check = True
 
-                    next_period_full = str(int(actual_period) + 1)
-                    last_3_digits = next_period_full[-3:]
+                    last_3_digits = str(int(actual_period) + 1)[-3:]
                     pred_bangla = "বিগ" if current_pred == "BIG" else "স্মল"
 
                     signal_speech = (
                         f"পিরিয়ড নাম্বার {last_3_digits}। "
                         f"সিগন্যাল হলো {pred_bangla}। সবাই {pred_bangla}-এ ট্রেড ধরুন। "
-                        f"সবাই অপেক্ষা করুন, এবার কোপ হবে, সবাই উইন হবেন!"
+                        f"সবাই অপেক্ষা করুন, এবার কিন্তু পুরাই কোপ হবে, সবাই উইন হবেন!"
                     )
 
-                    print(f"\n[🚨 নতুন সিগন্যাল] Period: {last_3_digits} | Signal: {current_pred}")
+                    print(
+                        f"\n[🚨 লাইভ সিগন্যাল] Period: {last_3_digits} | Signal: {current_pred}"
+                    )
+                    v_file = await generate_sweet_girl_voice(signal_speech)
+                    await play_in_live(v_file)
 
-                    voice_path = await generate_girl_voice(signal_speech)
-                    await play_in_live(voice_path)
-
-        except Exception as err:
-            print(f"API/Signal Error: {err}")
+        except Exception as e:
+            print(f"Loop Error: {e}")
 
         await asyncio.sleep(3)
 
 
-# Render স্লিপ প্রিভেন্ট সার্ভার
+# Render ক্লাউড অ্যাক্টিভ রাখার সার্ভার
 async def keep_alive():
     server = web.Application()
     server.router.add_get("/", lambda r: web.Response(text="Bot is running!"))
@@ -138,49 +146,90 @@ async def keep_alive():
     await site.start()
 
 
-# /start কমান্ড
-@app.on_message(filters.command("start"))
-async def start_handler(client, message):
+# /start মেসেজ দিলে লাইভে ঢুকে স্বাগতম জানাবে
+@bot.on(events.NewMessage(pattern="/start"))
+async def start_handler(event):
     global is_running
     if is_running:
-        await message.reply_text("⚠️ বট ইতিমধ্যেই লাইভে সক্রিয় আছে!")
+        await event.respond("⚠️ বট ইতিমধ্যেই লাইভে সক্রিয় আছে!")
         return
 
     is_running = True
-    await message.reply_text("✅ ১ মিনিটের WinGo AI বট লাইভে জয়েন হচ্ছে...")
+    await event.respond("✅ বট সরাসরি লাইভ স্ট্রিমে যুক্ত হচ্ছে...")
 
     try:
-        welcome_audio = await generate_girl_voice(
-            "হ্যালো এভরিওয়ান! আমাদের ভিআইপি সিগন্যাল লাইভ স্ট্রিমে স্বাগতম।"
+        # লাইভে ঢুকেই প্রথম ডায়লগ
+        welcome_intro = (
+            "হ্যালো এভরিওয়ান! আমি হলাম এআই রোবট। "
+            "সবাই তাড়াতাড়ি লাইভে চলে আসুন, আমি এই রোবট সবাইকে ১ মিনিটের ১০০% পারফেক্ট সিগন্যাল দিবো।"
         )
+        welcome_audio = await generate_sweet_girl_voice(welcome_intro)
         await play_in_live(welcome_audio)
     except Exception as e:
-        print(f"Welcome Audio Error: {e}")
+        print(f"Join Error: {e}")
 
-    asyncio.create_task(wingo_1min_engine())
+    asyncio.create_task(wingo_1min_live_engine())
 
 
-# /stop কমান্ড
-@app.on_message(filters.command("stop"))
-async def stop_handler(client, message):
+# /song কমান্ড দিলে "Ek Din Teri Raahon Mein" গানটি লাইভে বাজবে
+@bot.on(events.NewMessage(pattern=r"^/song(?:\s+(.*))?"))
+async def song_handler(event):
+    query = event.pattern_match.group(1)
+    if not query:
+        query = "Ek Din Teri Raahon Mein song"
+
+    await event.respond(f"🎵 লাইভ স্ট্রিমে গান বাজানো হচ্ছে: **{query}**...")
+
+    try:
+        # ইউটিউব থেকে গানটি প্রসেস করা
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": "song.%(ext)s",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }
+            ],
+            "quiet": True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([f"ytsearch1:{query}"])
+
+        # লাইভ স্ট্রিমের অডিও ফরম্যাটে কনভার্ট
+        raw_song = "song.raw"
+        os.system(
+            f"ffmpeg -y -i song.mp3 -f s16le -ac 1 -ar 48000 {raw_song} >/dev/null 2>&1"
+        )
+
+        # গান লাইভে প্লে করা
+        await play_in_live(raw_song)
+        await event.respond(f"▶️ **{query}** গানটি এখন লাইভে চলছে!")
+    except Exception as e:
+        await event.respond(f"গান প্লে করতে সমস্যা হয়েছে: {e}")
+
+
+# /stop মেসেজ দিলে লাইভ বন্ধ হবে
+@bot.on(events.NewMessage(pattern="/stop"))
+async def stop_handler(event):
     global is_running
     is_running = False
     try:
-        await call_py.leave_call(CHAT_ID)
-        await message.reply_text("🛑 লাইভ স্ট্রিম বট বন্ধ করা হয়েছে।")
+        await call_py.leave_group_call(CHAT_ID)
+        await event.respond("🛑 বট লাইভ ত্যাগ করেছে।")
     except Exception as e:
         print(f"Stop Error: {e}")
 
 
 async def main():
-    await app.start()
     await call_py.start()
     await keep_alive()
     print("==================================================")
-    print(" ১ মিনিটের WinGo AI প্রেডিক্টর বট লাইভ শুরু করার জন্য রেডি!")
-    print(" টেলিগ্রামে /start লিখে দিন।")
+    print(" বট সম্পূর্ণ রেডি! টেলিগ্রামে /start লিখে দিন।")
     print("==================================================")
-    await asyncio.Event().wait()
+    await bot.run_until_disconnected()
 
 
 if __name__ == "__main__":
