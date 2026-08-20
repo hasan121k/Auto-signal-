@@ -3,3 +3,4 @@ pytgcalls==3.0.0.dev24
 tgcrypto
 edge-tts
 requests
+aiohttp
