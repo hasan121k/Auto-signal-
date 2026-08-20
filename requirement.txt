@@ -1,6 +1,7 @@
-pyrogram==2.0.106
-pytgcalls
+telethon
+pytgcalls==0.9.6
 tgcrypto
 edge-tts
 requests
 aiohttp
+yt-dlp
