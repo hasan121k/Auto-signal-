@@ -4,3 +4,4 @@ edge-tts
 yt-dlp
 aiohttp
 requests
+static-ffmpeg
