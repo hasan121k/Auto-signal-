@@ -17,9 +17,8 @@ CHAT_ID = -1004378457331  # চ্যানেলের লাইভ আইড�
 API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
 # ==================================================
 
-bot = TelegramClient("signal_bot_session", API_ID, API_HASH).start(
-    bot_token=BOT_TOKEN
-)
+# এখানে বটটি শুধু ডিক্লেয়ার করা হলো (লুপের ঝামেলা এড়াতে এটি main() এর ভেতর চালু হবে)
+bot = TelegramClient("signal_bot_session", API_ID, API_HASH)
 call_py = PyTgCalls(bot)
 
 is_running = False
@@ -219,6 +218,7 @@ async def stop_handler(event):
 
 
 async def main():
+    await bot.start(bot_token=BOT_TOKEN)  # ইভেন্ট লুপের একই থ্রেডে ক্লায়েন্ট শুরু করা হলো
     await call_py.start()
     await keep_alive()
     print("==================================================")
