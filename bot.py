@@ -3,9 +3,21 @@ import os
 from aiohttp import web
 import edge_tts
 from pyrogram import Client, filters
-from pytgcalls import PyTgCalls
-from pytgcalls.types import MediaStream
 import requests
+
+# নতুন ও পুরনো উভয় ভার্সনের জন্য অটোমেটিক ইমপোর্ট হ্যান্ডলার
+try:
+    from pytgcalls import PyTgCalls
+except ImportError:
+    from pytgcalls import Client as PyTgCalls
+
+try:
+    from pytgcalls.types import MediaStream
+except ImportError:
+    try:
+        from pytgcalls.types import AudioPiped as MediaStream
+    except ImportError:
+        pass
 
 # ================= আপনার কনফিগারেশন =================
 API_ID = 33978180
@@ -26,7 +38,7 @@ current_pred = None
 pending_check = False
 
 
-# মিষ্টি বাংলাদেশি মেয়েদের কণ্ঠ (Nabanita Neural Voice)
+# মিষ্টি বাংলাদেশি মেয়েদের কণ্ঠ
 async def generate_girl_voice(text):
     audio_file = "voice_output.mp3"
     communicate = edge_tts.Communicate(
@@ -36,34 +48,28 @@ async def generate_girl_voice(text):
     return audio_file
 
 
-# লাইভে ভয়েস শোনানো
+# লাইভে ভয়েস প্লে
 async def play_in_live(audio_file):
     try:
-        await call_py.play(
-            CHAT_ID, MediaStream(audio_file, audio_parameters=None)
-        )
+        await call_py.play(CHAT_ID, MediaStream(audio_file))
     except Exception as e:
-        print(f"ভয়েস লাইভে পাঠাতে সমস্যা: {e}")
+        print(f"ভয়েস প্লে এরর: {e}")
 
 
-# প্রেডিকশন ক্যালকুলেশন (Dragon / Trend Formula)
+# ১ মিনিটের সিগন্যাল প্রেডিকশন
 def calculate_prediction(history_list):
     last5_sizes = [
         "BIG" if int(x["number"]) >= 5 else "SMALL" for x in history_list[:5]
     ]
-
     if last5_sizes[0] == last5_sizes[1] == last5_sizes[2]:
-        next_pred = last5_sizes[0]
-    else:
-        next_pred = "SMALL" if last5_sizes[0] == "BIG" else "BIG"
-
-    return next_pred
+        return last5_sizes[0]
+    return "SMALL" if last5_sizes[0] == "BIG" else "BIG"
 
 
 # ১ মিনিটের অটোমেটিক সিগন্যাল ইঞ্জিন
 async def wingo_1min_engine():
     global last_period, current_pred, pending_check, is_running
-    print(">> ১ মিনিটের WinGo AI লাইভ সিগন্যাল শুরু হয়েছে...")
+    print(">> ১ মিনিটের WinGo AI লাইভ সিগন্যাল চালু হয়েছে...")
 
     while is_running:
         try:
@@ -77,24 +83,24 @@ async def wingo_1min_engine():
                 actual_num = int(latest["number"])
                 actual_size = "BIG" if actual_num >= 5 else "SMALL"
 
-                # ১. আগের ড্র-এর রেজাল্ট (WIN নাকি LOSS) চেক ও ভয়েস দেওয়া
+                # উইন / লস চেক
                 if pending_check and last_period and last_period != actual_period:
                     if current_pred:
                         if current_pred == actual_size:
-                            win_msg = "বুম বুম! কোপ! আমাদের সিগন্যাল ডিরেক্ট উইন হয়েছে! সবাইকে অনেক অনেক অভিনন্দন!"
+                            win_msg = "বুম বুম! কোপ! আমাদের সিগন্যাল ডিরেক্ট উইন হয়েছে! সবাইকে অনেক অভিনন্দন!"
                             print(f"[RESULT] WIN: {actual_size}")
                             v_file = await generate_girl_voice(win_msg)
                             await play_in_live(v_file)
                             await asyncio.sleep(6)
                         else:
-                            loss_msg = "কোনো সমস্যা নাই, সবাই মার্টিঙ্গেল লেভেল অনুযায়ী পরের ট্রেডের জন্য রেডি হন। এবার কোপ হবে!"
+                            loss_msg = "কোনো সমস্যা নাই, সবাই মার্টিঙ্গেল লেভেল অনুযায়ী পরের ট্রেডের জন্য রেডি হন।"
                             print(f"[RESULT] LOSS: {actual_size}")
                             v_file = await generate_girl_voice(loss_msg)
                             await play_in_live(v_file)
                             await asyncio.sleep(6)
                     pending_check = False
 
-                # ২. নতুন ১ মিনিটের পিরিয়ডের সিগন্যাল তৈরি ও ভয়েসে ঘোষণা
+                # নতুন সিগন্যাল তৈরি
                 if last_period != actual_period:
                     last_period = actual_period
                     current_pred = calculate_prediction(history)
@@ -107,7 +113,7 @@ async def wingo_1min_engine():
                     signal_speech = (
                         f"পিরিয়ড নাম্বার {last_3_digits}। "
                         f"সিগন্যাল হলো {pred_bangla}। সবাই {pred_bangla}-এ ট্রেড ধরুন। "
-                        f"সবাই অপেক্ষা করুন, এবার কিন্তু পুরাই কোপ হবে, সবাই উইন হবেন!"
+                        f"সবাই অপেক্ষা করুন, এবার কোপ হবে, সবাই উইন হবেন!"
                     )
 
                     print(f"\n[🚨 নতুন সিগন্যাল] Period: {last_3_digits} | Signal: {current_pred}")
@@ -121,7 +127,7 @@ async def wingo_1min_engine():
         await asyncio.sleep(3)
 
 
-# Render যাতে স্লিপ না করে তার জন্য ডামি সার্ভার
+# Render স্লিপ প্রিভেন্ট সার্ভার
 async def keep_alive():
     server = web.Application()
     server.router.add_get("/", lambda r: web.Response(text="Bot is running!"))
@@ -145,7 +151,7 @@ async def start_handler(client, message):
 
     try:
         welcome_audio = await generate_girl_voice(
-            "হ্যালো এভরিওয়ান! আমাদের ভিআইপি সিগন্যাল লাইভ স্ট্রিমে স্বাগতম। সবাই সিগন্যালের জন্য অপেক্ষা করুন।"
+            "হ্যালো এভরিওয়ান! আমাদের ভিআইপি সিগন্যাল লাইভ স্ট্রিমে স্বাগতম।"
         )
         await play_in_live(welcome_audio)
     except Exception as e:
