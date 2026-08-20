@@ -5,13 +5,9 @@ import edge_tts
 from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
 import requests
-import static_ffmpeg  # Render হোস্টিংয়ে ffmpeg এর অনুপস্থিতি সমাধান করার জন্য
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import yt_dlp
-
-# সার্ভার চালু হওয়ামাত্র স্বয়ংক্রিয়ভাবে ffmpeg ডাউনলোড করে সিস্টেমে যুক্ত করবে
-static_ffmpeg.add_paths()
 
 # ================= আপনার কনফিগারেশন =================
 API_ID = 33978180
@@ -166,7 +162,7 @@ async def start_handler(event):
         # লাইভে ঢুকেই প্রথম ডায়লগ
         welcome_intro = (
             "হ্যালো এভরিওয়ান! আমি হলাম এআই রোবট। "
-            "সবাই তাড়াতাড়ি লাইভে চলে আসুন, আমি এই রোবট সবাইকে ১ মিনিটের ১০০% পারфেক্ট সিগন্যাল দিবো।"
+            "সবাই তাড়াতাড়ি লাইভে চলে আসুন, আমি এই রোবট সবাইকে ১ মিনিটের ১০০% পারফেক্ট সিগন্যাল দিবো।"
         )
         welcome_audio = await generate_sweet_girl_voice(welcome_intro)
         await play_in_live(welcome_audio)
