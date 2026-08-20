@@ -6,6 +6,7 @@ from pytgcalls import PyTgCalls
 from pytgcalls.types import MediaStream
 import requests
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 import yt_dlp
 
 # ================= আপনার কনফিগারেশন =================
@@ -14,12 +15,18 @@ API_HASH = "b3cb0b0378d532f1a8e7ef1c1fd2e841"
 BOT_TOKEN = "8386397372:AAG43W1Eom0ug_kqGBBjypdn2ZwtUUwynNA"
 CHAT_ID = -1004378457331  # চ্যানেলের লাইভ আইডি
 
-API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
+# আপনার জেনারেট করা সেশন কোডটি নিচে যুক্ত করা হলো
+SESSION_STRING = "1BVtsOKkBuwX1uqOP1ofqgm7ROMqx34npFQSGIgjHA2q7st-FHQ13qix6nkoYyOJZKiP1vSmNSxmMbLMNxux7beziJtC0j3WchY35xtZ6ohHzi_rEsWxqb408084-hv0OvG1ji-mGki02nnibh3XXMAkgO8r27xkXPR5_FIZHuE2YafTkSj7M7Hl1sIvCzmrnnIYT-D9IPRm4LmPk4z13g068QRxPNsGYXWk7clDZ9_sXfG88VVH4-odA9oTP9144wwBZxlmABl5RZOWx8H4MN6ezX4Zrt_EdRKCS_aCybjGbvESvOIkLtXtpxbeG6Az3uKHYsl1waglqejI2BN4M7nPI8HGvmr4="
 # ==================================================
 
-# এখানে বটটি শুধু ডিক্লেয়ার করা হলো (লুপের ঝামেলা এড়াতে এটি main() এর ভেতর চালু হবে)
+# বট অ্যাকাউন্ট (কমান্ড নেওয়ার জন্য)
 bot = TelegramClient("signal_bot_session", API_ID, API_HASH)
-call_py = PyTgCalls(bot)
+
+# অ্যাসিস্ট্যান্ট ইউজার অ্যাকাউন্ট (লাইভে কথা বলার জন্য)
+assistant = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+
+# PyTgCalls এখন আপনার অ্যাসিস্ট্যান্ট অ্যাকাউন্ট দিয়ে লাইভে জয়েন হবে
+call_py = PyTgCalls(assistant)
 
 is_running = False
 last_period = None
@@ -218,8 +225,9 @@ async def stop_handler(event):
 
 
 async def main():
-    await bot.start(bot_token=BOT_TOKEN)  # ইভেন্ট লুপের একই থ্রেডে ক্লায়েন্ট শুরু করা হলো
-    await call_py.start()
+    await bot.start(bot_token=BOT_TOKEN)  # কমান্ড শোনার জন্য বট চালু হলো
+    await assistant.start()  # লাইভে জয়েন হওয়ার জন্য ইউজার আইডি চালু হলো
+    await call_py.start()  # কলিং ইঞ্জিন চালু হলো
     await keep_alive()
     print("==================================================")
     print(" বট সম্পূর্ণ রেডি! টেলিগ্রামে /start লিখে দিন।")
