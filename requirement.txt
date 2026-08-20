@@ -1,7 +1,0 @@
-telethon
-pytgcalls==0.9.6
-tgcrypto
-edge-tts
-requests
-aiohttp
-yt-dlp

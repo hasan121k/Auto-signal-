@@ -1,0 +1,6 @@
+py-tgcalls
+telethon
+edge-tts
+yt-dlp
+aiohttp
+requests
