@@ -37,24 +37,20 @@ current_pred = None
 pending_check = False
 
 
-# মিষ্টি মেয়েদের ভয়েস তৈরি
+# মিষ্টি মেয়েদের ভয়েস তৈরি (সরাসরি MP3 ফরম্যাটে)
 async def generate_sweet_girl_voice(text):
-    audio_file = "voice_output.raw"
-    mp3_file = "temp.mp3"
+    audio_file = "voice_output.mp3"
     comm = edge_tts.Communicate(
         text, voice="bn-BD-NabanitaNeural", rate="+3%", pitch="+3Hz"
     )
-    await comm.save(mp3_file)
-    os.system(
-        f"ffmpeg -y -i {mp3_file} -f s16le -ac 1 -ar 48000 {audio_file} >/dev/null 2>&1"
-    )
+    await comm.save(audio_file)
     return audio_file
 
 
 # লাইভে কথা বা গান প্লে করা
-async def play_in_live(raw_audio_file):
+async def play_in_live(audio_file_path):
     try:
-        await call_py.play(CHAT_ID, MediaStream(raw_audio_file))
+        await call_py.play(CHAT_ID, MediaStream(audio_file_path))
     except Exception as e:
         # repr(e) ব্যবহারে করে আসল এররটি সুনির্দিষ্টভাবে লগে প্রিন্ট হবে
         print(f"Play Stream Info: {repr(e)}")
@@ -189,7 +185,7 @@ async def song_handler(event):
         # ইউটিউব থেকে গানটি প্রসেস করা
         ydl_opts = {
             "format": "bestaudio/best",
-            "outtmpl": "song.%(ext)s",
+            "outtmpl": "song.mp3",  # সরাসরি mp3 ফাইল সেভ করা হচ্ছে
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
@@ -203,14 +199,8 @@ async def song_handler(event):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([f"ytsearch1:{query}"])
 
-        # লাইভ স্ট্রিমের অডিও ফরম্যাটে কনভার্ট
-        raw_song = "song.raw"
-        os.system(
-            f"ffmpeg -y -i song.mp3 -f s16le -ac 1 -ar 48000 {raw_song} >/dev/null 2>&1"
-        )
-
-        # গান লাইভে প্লে করা
-        await play_in_live(raw_song)
+        # গান লাইভে প্লে করা (সরাসরি mp3 ফাইল)
+        await play_in_live("song.mp3")
         await event.respond(f"▶️ **{query}** গানটি এখন লাইভে চলছে!")
     except Exception as e:
         await event.respond(f"গান প্লে করতে সমস্যা হয়েছে: {e}")
