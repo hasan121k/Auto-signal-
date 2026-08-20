@@ -15,6 +15,9 @@ API_HASH = "b3cb0b0378d532f1a8e7ef1c1fd2e841"
 BOT_TOKEN = "8386397372:AAG43W1Eom0ug_kqGBBjypdn2ZwtUUwynNA"
 CHAT_ID = -1004378457331  # চ্যানেলের লাইভ আইডি
 
+# সিগন্যাল পাওয়ার এপিআই লিংক
+API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json"
+
 # আপনার জেনারেট করা সেশন কোড
 SESSION_STRING = "1BVtsOKkBuwX1uqOP1ofqgm7ROMqx34npFQSGIgjHA2q7st-FHQ13qix6nkoYyOJZKiP1vSmNSxmMbLMNxux7beziJtC0j3WchY35xtZ6ohHzi_rEsWxqb408084-hv0OvG1ji-mGki02nnibh3XXMAkgO8r27xkXPR5_FIZHuE2YafTkSj7M7Hl1sIvCzmrnnIYT-D9IPRm4LmPk4z13g068QRxPNsGYXWk7clDZ9_sXfG88VVH4-odA9oTP9144wwBZxlmABl5RZOWx8H4MN6ezX4Zrt_EdRKCS_aCybjGbvESvOIkLtXtpxbeG6Az3uKHYsl1waglqejI2BN4M7nPI8HGvmr4="
 # ==================================================
