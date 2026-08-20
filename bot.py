@@ -22,14 +22,10 @@ API_URL = "https://draw.ar-lottery01.com/WinGo/WinGo_1M/GetHistoryIssuePage.json
 SESSION_STRING = "1BVtsOKkBuwX1uqOP1ofqgm7ROMqx34npFQSGIgjHA2q7st-FHQ13qix6nkoYyOJZKiP1vSmNSxmMbLMNxux7beziJtC0j3WchY35xtZ6ohHzi_rEsWxqb408084-hv0OvG1ji-mGki02nnibh3XXMAkgO8r27xkXPR5_FIZHuE2YafTkSj7M7Hl1sIvCzmrnnIYT-D9IPRm4LmPk4z13g068QRxPNsGYXWk7clDZ9_sXfG88VVH4-odA9oTP9144wwBZxlmABl5RZOWx8H4MN6ezX4Zrt_EdRKCS_aCybjGbvESvOIkLtXtpxbeG6Az3uKHYsl1waglqejI2BN4M7nPI8HGvmr4="
 # ==================================================
 
-# বট অ্যাকাউন্ট (কমান্ড নেওয়ার জন্য)
-bot = TelegramClient("signal_bot_session", API_ID, API_HASH)
-
-# অ্যাসিস্ট্যান্ট ইউজার অ্যাকাউন্ট (লাইভে কথা বলার জন্য)
-assistant = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
-
-# PyTgCalls এখন আপনার অ্যাসিস্ট্যান্ট অ্যাকাউন্ট দিয়ে লাইভে জয়েন হবে
-call_py = PyTgCalls(assistant)
+# গ্লোবাল ভ্যারিয়েবল ডিক্লেয়ারেশন (যা main-এর ভেতর ইনিশিয়ালাইজ হবে)
+bot = None
+assistant = None
+call_py = None
 
 is_running = False
 last_period = None
@@ -49,6 +45,7 @@ async def generate_sweet_girl_voice(text):
 
 # লাইভে কথা বা গান প্লে করা
 async def play_in_live(audio_file_path):
+    global call_py
     try:
         await call_py.play(CHAT_ID, MediaStream(audio_file_path))
     except Exception as e:
@@ -148,9 +145,8 @@ async def keep_alive():
 
 
 # /start মেসেজ দিলে লাইভে ঢুকে স্বাগতম জানাবে
-@bot.on(events.NewMessage(pattern="/start"))
 async def start_handler(event):
-    global is_running
+    global is_running, bot
     if is_running:
         await event.respond("⚠️ বট ইতিমধ্যেই লাইভে সক্রিয় আছে!")
         return
@@ -173,7 +169,6 @@ async def start_handler(event):
 
 
 # /song কমান্ড দিলে "Ek Din Teri Raahon Mein" গানটি লাইভে বাজবে
-@bot.on(events.NewMessage(pattern=r"^/song(?:\s+(.*))?"))
 async def song_handler(event):
     query = event.pattern_match.group(1)
     if not query:
@@ -207,9 +202,8 @@ async def song_handler(event):
 
 
 # /stop মেসেজ দিলে লাইভ বন্ধ হবে
-@bot.on(events.NewMessage(pattern="/stop"))
 async def stop_handler(event):
-    global is_running
+    global is_running, call_py
     is_running = False
     try:
         await call_py.leave_call(CHAT_ID)
@@ -219,6 +213,18 @@ async def stop_handler(event):
 
 
 async def main():
+    global bot, assistant, call_py
+    
+    # অবজেক্টগুলো active loop এর ভেতর তৈরি করার ফলে asyncio লুপের অমিল দূর হবে
+    bot = TelegramClient("signal_bot_session", API_ID, API_HASH)
+    assistant = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+    call_py = PyTgCalls(assistant)
+    
+    # ইভেন্ট হ্যান্ডলারগুলো প্রোগ্রাম্যাটিক্যালি যুক্ত করা হলো
+    bot.add_event_handler(start_handler, events.NewMessage(pattern="/start"))
+    bot.add_event_handler(song_handler, events.NewMessage(pattern=r"^/song(?:\s+(.*))?"))
+    bot.add_event_handler(stop_handler, events.NewMessage(pattern="/stop"))
+
     await bot.start(bot_token=BOT_TOKEN)  # কমান্ড শোনার জন্য বট চালু হলো
     await assistant.start()  # লাইভে জয়েন হওয়ার জন্য ইউজার আইডি চালু হলো
     await call_py.start()  # কলিং ইঞ্জিন চালু হলো
